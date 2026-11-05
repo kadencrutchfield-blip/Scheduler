@@ -25,6 +25,7 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Scheduler
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UISupportedInterfaceOrientations~ipad:

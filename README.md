@@ -35,7 +35,7 @@ opens the Messages simulator with a fake two-person conversation.
 ## Sharing it with friends
 
 Everyone who wants to vote needs the app installed. Options:
-- **TestFlight** (up to 10,000 testers) or the **App Store** — requires an Apple Developer Program membership ($99/yr).
+- **TestFlight** (up to 10,000 testers) — no Mac needed, see [TESTFLIGHT.md](TESTFLIGHT.md). Requires an Apple Developer Program membership ($99/yr).
 - Free provisioning only installs on devices you plug into your own Mac (apps expire after 7 days).
 
 ## Project layout
