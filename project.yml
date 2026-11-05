@@ -1,0 +1,51 @@
+name: Scheduler
+options:
+  bundleIdPrefix: com.kadencrutchfield
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    # Set this to your Apple Developer Team ID (Xcode > Signing & Capabilities also works)
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Scheduler:
+    type: application
+    platform: iOS
+    sources: [App]
+    scheme: {}
+    dependencies:
+      - target: SchedulerMessages
+        embed: true
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Scheduler
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad:
+          [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown,
+           UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kadencrutchfield.scheduler
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  SchedulerMessages:
+    type: app-extension.messages
+    platform: iOS
+    sources: [MessagesExtension]
+    info:
+      path: MessagesExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Scheduler
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.message-payload-provider
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).MessagesViewController
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kadencrutchfield.scheduler.messages
+        ASSETCATALOG_COMPILER_APPICON_NAME: "iMessage App Icon"
