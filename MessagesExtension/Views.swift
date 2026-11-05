@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
-private let accent = Color(red: 0.10, green: 0.45, blue: 0.95)
-private let good = Color(red: 0.20, green: 0.70, blue: 0.45)
+private let brandGradient = LinearGradient(
+    colors: [Color(red: 0.20, green: 0.78, blue: 0.55), Color(red: 0.10, green: 0.45, blue: 0.95)],
+    startPoint: .topLeading, endPoint: .bottomTrailing)
 
 struct RootView: View {
     @ObservedObject var store: PollStore
@@ -21,7 +23,51 @@ struct RootView: View {
                 }
             }
         }
-        .tint(accent)
+    }
+}
+
+// MARK: - Shared pieces
+
+/// Rounded-square app glyph, like a home-screen icon.
+struct AppGlyph: View {
+    var size: CGFloat = 52
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
+            .fill(brandGradient)
+            .frame(width: size, height: size)
+            .overlay(
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: size * 0.48, weight: .semibold))
+                    .foregroundStyle(.white)
+            )
+    }
+}
+
+/// A little page-a-day tile in the style of the Calendar app icon.
+struct CalendarTile: View {
+    let date: Date
+    var size: CGFloat = 56
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                .font(.system(size: size * 0.2, weight: .semibold))
+                .foregroundStyle(.red)
+            Text(date.formatted(.dateTime.day()))
+                .font(.system(size: size * 0.48, weight: .regular))
+                .foregroundStyle(.primary)
+                .monospacedDigit()
+        }
+        .frame(width: size, height: size)
+        .background(Color(.secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Formatters.dayLong.string(from: date))
     }
 }
 
@@ -31,25 +77,34 @@ struct HomeView: View {
     @ObservedObject var store: PollStore
 
     var body: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 40, weight: .semibold))
-                .foregroundStyle(accent)
-            Text("Find a time that works for everyone")
-                .font(.headline)
-                .multilineTextAlignment(.center)
+        VStack(spacing: 18) {
+            Spacer(minLength: 0)
+            HStack(spacing: 14) {
+                AppGlyph(size: 52)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Scheduler")
+                        .font(.title3.weight(.semibold))
+                    Text("Find a time that works for everyone.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
             Button {
                 store.startCreating()
             } label: {
                 Label("New Time Poll", systemImage: "plus")
-                    .font(.headline)
+                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
             }
             .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            Spacer(minLength: 0)
         }
-        .padding()
+        .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
     }
 }
 
@@ -63,7 +118,7 @@ struct CreatePollView: View {
     @State private var pending = CreatePollView.nextHour()
     @State private var duration = 60
 
-    private let durations = [30, 60, 120, 180]
+    private let durations = [30, 60, 90, 120, 180]
 
     static func nextHour() -> Date {
         let cal = Calendar.current
@@ -77,64 +132,71 @@ struct CreatePollView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button("Cancel") { store.cancelCreating() }
-                Spacer()
-                Text("New Poll").font(.headline)
-                Spacer()
-                Button("Send") {
-                    store.create(title: title, slots: slots, durationMinutes: duration)
-                }
-                .bold()
-                .disabled(!canSend)
-            }
-            .padding()
-
+        NavigationStack {
             Form {
-                Section("Event") {
-                    TextField("e.g. Dinner, Game night, Study group", text: $title)
-                }
-
-                Section("How long?") {
+                Section {
+                    TextField("Title", text: $title, prompt: Text("Game night, dinner, study group…"))
+                        .textInputAutocapitalization(.sentences)
                     Picker("Duration", selection: $duration) {
                         ForEach(durations, id: \.self) { m in
-                            Text(m < 60 ? "\(m)m" : "\(m / 60)h").tag(m)
+                            Text(Formatters.duration(m)).tag(m)
                         }
                     }
-                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Event")
                 }
 
                 Section {
-                    DatePicker("Time", selection: $pending, displayedComponents: [.date, .hourAndMinute])
-                    HStack {
+                    DatePicker("Starts", selection: $pending, displayedComponents: [.date, .hourAndMinute])
+                    Button {
+                        add(pending)
+                    } label: {
+                        Label("Add Time", systemImage: "plus.circle.fill")
+                    }
+                    if let last = slots.last {
                         Button {
-                            add(pending)
+                            add(Calendar.current.date(byAdding: .day, value: 1, to: last) ?? last)
                         } label: {
-                            Label("Add this time", systemImage: "plus.circle.fill")
-                        }
-                        Spacer()
-                        if let last = slots.last {
-                            Button("Same time +1 day") {
-                                add(Calendar.current.date(byAdding: .day, value: 1, to: last) ?? last)
-                            }
-                            .font(.footnote)
+                            Label("Same Time Next Day", systemImage: "arrow.forward.circle")
                         }
                     }
-                    .buttonStyle(.borderless)
                 } header: {
-                    Text("Time options")
+                    Text("Add Times")
                 } footer: {
-                    Text("Add every time that could work. Friends will tap the ones they're free for.")
+                    Text("Add every time that could work. Friends tap the ones they're free.")
                 }
 
                 if !slots.isEmpty {
-                    Section("\(slots.count) option\(slots.count == 1 ? "" : "s")") {
+                    Section {
                         ForEach(slots, id: \.self) { slot in
-                            Text(Formatters.range(start: slot, minutes: duration))
+                            HStack(spacing: 12) {
+                                CalendarTile(date: slot, size: 40)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(Formatters.dayLong.string(from: slot))
+                                    Text(Formatters.timeRange(start: slot, minutes: duration))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                         .onDelete { slots.remove(atOffsets: $0) }
+                    } header: {
+                        Text(slots.count == 1 ? "1 Option" : "\(slots.count) Options")
                     }
+                }
+            }
+            .navigationTitle("New Poll")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { store.cancelCreating() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Send") {
+                        store.create(title: title, slots: slots, durationMinutes: duration)
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!canSend)
                 }
             }
         }
@@ -142,8 +204,11 @@ struct CreatePollView: View {
 
     private func add(_ date: Date) {
         guard !slots.contains(date) else { return }
-        slots.append(date)
-        slots.sort()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation {
+            slots.append(date)
+            slots.sort()
+        }
         pending = date
     }
 }
@@ -153,53 +218,102 @@ struct CreatePollView: View {
 struct VoteView: View {
     @ObservedObject var store: PollStore
 
+    private var nameMissing: Bool {
+        store.myName.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
         if let poll = store.poll {
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(poll.title).font(.title.bold())
-                            Text(poll.respondentCount == 0
-                                 ? "Be the first to respond — tap every time you're free."
-                                 : "\(poll.respondentCount) responded so far. Tap every time you're free.")
-                                .foregroundStyle(.secondary)
-                        }
+            NavigationStack {
+                List {
+                    Section {
+                        PollHeader(poll: poll)
+                    }
 
-                        HStack {
-                            Image(systemName: "person.crop.circle")
-                                .foregroundStyle(.secondary)
-                            TextField("Your name", text: $store.myName)
-                                .textContentType(.givenName)
-                        }
-                        .padding(12)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    Section {
+                        TextField("Your Name", text: $store.myName)
+                            .textContentType(.givenName)
+                    } header: {
+                        Text("Responding As")
+                    }
 
-                        ForEach(poll.slots.indices, id: \.self) { i in
-                            SlotRow(poll: poll,
-                                    index: i,
-                                    selected: store.mySelection.contains(i),
-                                    isBest: poll.bestSlots.contains(i)) {
-                                store.toggle(i)
+                    ForEach(poll.slotsByDay) { group in
+                        Section {
+                            ForEach(group.indices, id: \.self) { i in
+                                SlotRow(poll: poll,
+                                        index: i,
+                                        selected: store.mySelection.contains(i),
+                                        isBest: poll.bestSlots.contains(i)) {
+                                    UISelectionFeedbackGenerator().selectionChanged()
+                                    withAnimation(.easeInOut(duration: 0.2)) { store.toggle(i) }
+                                }
                             }
+                        } header: {
+                            Text(Formatters.dayLong.string(from: group.day))
                         }
                     }
-                    .padding()
                 }
+                .listStyle(.insetGrouped)
+                .navigationTitle(poll.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .safeAreaInset(edge: .bottom) {
+                    VStack(spacing: 6) {
+                        Button {
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            store.submitVote()
+                        } label: {
+                            Text(store.hasResponded ? "Update Availability" : "Send Availability")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.large)
+                        .disabled(nameMissing)
 
-                Button {
-                    store.submitVote()
-                } label: {
-                    Text(store.hasResponded ? "Update my availability" : "Send my availability")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        if nameMissing {
+                            Text("Enter your name to send.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(.bar)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(store.myName.trimmingCharacters(in: .whitespaces).isEmpty)
-                .padding()
             }
         }
+    }
+}
+
+struct PollHeader: View {
+    let poll: Poll
+
+    var body: some View {
+        HStack(spacing: 14) {
+            if let date = poll.featuredDate {
+                CalendarTile(date: date, size: 56)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(poll.title)
+                    .font(.title3.weight(.semibold))
+                if let best = poll.bestSlots.first {
+                    Label {
+                        Text(Formatters.day.string(from: poll.slots[best]) + ", "
+                             + Formatters.timeRange(start: poll.slots[best], minutes: poll.durationMinutes))
+                    } icon: {
+                        Image(systemName: "star.fill").foregroundStyle(.yellow)
+                    }
+                    .font(.subheadline)
+                }
+                Text(poll.respondentCount == 0
+                     ? "No responses yet"
+                     : "\(poll.respondentCount) responded · \(Formatters.duration(poll.durationMinutes))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -216,37 +330,32 @@ struct SlotRow: View {
         let names = poll.voterNames(for: index)
 
         Button(action: onTap) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(selected ? good : .secondary)
+                    .foregroundStyle(selected ? Color.green : Color(.tertiaryLabel))
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(poll.timeText(for: index))
-                            .font(.body.weight(.semibold))
+                    HStack(spacing: 6) {
+                        Text(Formatters.timeRange(start: poll.slots[index], minutes: poll.durationMinutes))
                             .foregroundStyle(.primary)
                         if isBest {
-                            Text("BEST")
-                                .font(.caption2.bold())
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Color.yellow.opacity(0.35), in: Capsule())
-                                .foregroundStyle(.primary)
+                            Image(systemName: "star.fill")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                                .accessibilityLabel("Best time")
                         }
-                        Spacer()
-                        Text("\(count)")
-                            .font(.headline.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        HStack(spacing: 3) {
+                            Image(systemName: "person.fill").font(.caption)
+                            Text("\(count)").monospacedDigit()
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     }
 
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color(.tertiarySystemFill))
-                            Capsule().fill(isBest ? good : accent)
-                                .frame(width: geo.size.width * CGFloat(count) / CGFloat(total))
-                        }
-                    }
-                    .frame(height: 6)
+                    ProgressView(value: Double(count), total: Double(total))
+                        .tint(isBest ? .green : .accentColor)
 
                     if !names.isEmpty {
                         Text(names.joined(separator: ", "))
@@ -256,17 +365,11 @@ struct SlotRow: View {
                     }
                 }
             }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(selected ? good.opacity(0.12) : Color(.secondarySystemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(selected ? good : .clear, lineWidth: 2)
-            )
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -277,21 +380,37 @@ struct CompactPollView: View {
 
     var body: some View {
         if let poll = store.poll {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(poll.title).font(.headline)
-                Text(poll.summaryLine)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 16) {
+                Spacer(minLength: 0)
+                HStack(spacing: 14) {
+                    if let date = poll.featuredDate {
+                        CalendarTile(date: date, size: 52)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(poll.title).font(.headline)
+                        Text(poll.respondentCount == 0
+                             ? "\(poll.slots.count) times to choose from"
+                             : "\(poll.respondentCount) responded")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
                 Button {
                     store.requestExpand()
                 } label: {
-                    Text(store.hasResponded ? "Change my answer" : "Pick my times")
+                    Text(store.hasResponded ? "Change My Answer" : "Pick My Times")
+                        .fontWeight(.semibold)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                Spacer(minLength: 0)
             }
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemGroupedBackground))
         }
     }
 }

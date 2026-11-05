@@ -44,6 +44,37 @@ struct Poll: Codable, Equatable {
     }
 }
 
+// MARK: - Grouping
+
+struct DayGroup: Identifiable {
+    let day: Date
+    var indices: [Int]
+    var id: Date { day }
+}
+
+extension Poll {
+    /// Slot indices grouped by calendar day, in time order.
+    var slotsByDay: [DayGroup] {
+        let cal = Calendar.current
+        var groups: [DayGroup] = []
+        for i in slots.indices.sorted(by: { slots[$0] < slots[$1] }) {
+            let day = cal.startOfDay(for: slots[i])
+            if let last = groups.last, last.day == day {
+                groups[groups.count - 1].indices.append(i)
+            } else {
+                groups.append(DayGroup(day: day, indices: [i]))
+            }
+        }
+        return groups
+    }
+
+    /// The date to feature on the calendar tile: the best slot, else the first.
+    var featuredDate: Date? {
+        if let b = bestSlots.first { return slots[b] }
+        return slots.min()
+    }
+}
+
 // MARK: - URL encoding
 
 extension Poll {
@@ -104,6 +135,34 @@ enum Formatters {
         f.timeStyle = .short
         return f
     }()
+
+    static let dayLong: DateFormatter = {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate("EEEEMMMMd")
+        return f
+    }()
+
+    static let interval: DateIntervalFormatter = {
+        let f = DateIntervalFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f
+    }()
+
+    /// "7:00 – 9:00 PM"
+    static func timeRange(start: Date, minutes: Int) -> String {
+        interval.string(from: start, to: start.addingTimeInterval(TimeInterval(minutes * 60)))
+    }
+
+    /// "1 hr 30 min"
+    static func duration(_ minutes: Int) -> String {
+        let h = minutes / 60, m = minutes % 60
+        switch (h, m) {
+        case (0, _): return "\(m) min"
+        case (_, 0): return "\(h) hr"
+        default: return "\(h) hr \(m) min"
+        }
+    }
 
     static func range(start: Date, minutes: Int) -> String {
         let end = start.addingTimeInterval(TimeInterval(minutes * 60))
