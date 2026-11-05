@@ -47,5 +47,5 @@ Everyone who wants to vote needs the app installed. Options:
 | `MessagesExtension/PollStore.swift` | UI state / actions |
 | `MessagesExtension/Views.swift` | SwiftUI screens: home, create poll, vote |
 | `MessagesExtension/CardRenderer.swift` | Draws the image shown in the bubble |
-| `App/` | Small home-screen app with instructions (required container for the extension) |
+| `project.yml` → `Scheduler` | iMessage-only container (no home-screen icon, like GamePigeon) |
 | `project.yml` | XcodeGen project definition |

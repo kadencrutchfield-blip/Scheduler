@@ -13,28 +13,22 @@ settings:
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
 targets:
+  # iMessage-only app (like GamePigeon): no home-screen icon, it lives in the Messages app drawer.
   Scheduler:
-    type: application
+    type: application.messages
     platform: iOS
-    sources: [App]
     scheme: {}
     dependencies:
       - target: SchedulerMessages
         embed: true
     info:
-      path: App/Info.plist
+      path: MessagesApp/Info.plist
       properties:
         CFBundleDisplayName: Scheduler
         ITSAppUsesNonExemptEncryption: false
-        UILaunchScreen: {}
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        UISupportedInterfaceOrientations~ipad:
-          [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown,
-           UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kadencrutchfield.scheduler
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   SchedulerMessages:
     type: app-extension.messages
     platform: iOS
